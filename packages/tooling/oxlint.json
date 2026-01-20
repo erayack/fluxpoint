@@ -1,0 +1,9 @@
+{
+  "ignorePatterns": [
+    "**/node_modules/**",
+    "**/.svelte-kit/**",
+    "**/dist/**",
+    "**/build/**"
+  ],
+  "rules": {}
+}

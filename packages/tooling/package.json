@@ -1,0 +1,11 @@
+{
+  "name": "@repo/tooling",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./eslint.config.js": "./eslint.config.js",
+    "./oxlint.json": "./oxlint.json",
+    "./vitest.config.ts": "./vitest.config.ts"
+  }
+}

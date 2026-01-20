@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ES2022",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "exactOptionalPropertyTypes": true,
+    "baseUrl": ".",
+    "paths": {
+      "@repo/api": ["packages/api/src/index.ts"],
+      "@repo/core": ["packages/core/src/index.ts"],
+      "@repo/ui": ["packages/ui/src/index.ts"]
+    },
+    "skipLibCheck": true
+  }
+}
