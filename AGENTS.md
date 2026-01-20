@@ -1,7 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `apps/web/`: Svelte 5 + Vite frontend.
+- `apps/web/`: SvelteKit (SSR) app built with Vite.
 - `packages/api/`: API surface area and runtime validation.
   - Vendored Specta types go in `packages/api/src/generated/` (do not generate types in this repo).
   - Effect Schema wrappers live in `packages/api/src/schemas/` and are re-exported from `packages/api/src/index.ts`.
@@ -12,7 +12,7 @@
 ## Build, Test, and Development Commands
 - `pnpm install`: install workspace dependencies (see `packageManager` in `package.json`).
 - `pnpm dev`: run the web app dev server (filters to `apps/web`).
-- `pnpm --filter web build`: production build for `apps/web`.
+- `pnpm --filter web build`: production build for `apps/web` (SvelteKit SSR output).
 - `pnpm --filter web preview`: preview the production build locally.
 - `pnpm lint`: run `oxlint` + ESLint across the repo.
 - `pnpm test`: run unit tests via Vitest (`packages/tooling/vitest.config.ts`).
@@ -29,6 +29,7 @@
 - Keep shared CLI tooling (e.g. `eslint`, `oxlint`, `vitest`) in the repo root `devDependencies`; run via `pnpm <script>` from the root.
 - Centralize lint/test configuration in `packages/tooling/` and reference it from root scripts.
 - For `apps/web/`, Vite resolves TSConfig aliases via `vite-tsconfig-paths` (`apps/web/vite.config.ts`).
+- Docker builds use `pnpm deploy`, which requires `inject-workspace-packages=true` (see `.npmrc`).
 - `pnpm.onlyBuiltDependencies` is configured in root `package.json` to allow build scripts for `esbuild` and `@oxlint/darwin-arm64`.
 
 ## Testing Guidelines
