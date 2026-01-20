@@ -31,6 +31,9 @@
 - For `apps/web/`, Vite resolves TSConfig aliases via `vite-tsconfig-paths` (`apps/web/vite.config.ts`).
 - Docker builds use `pnpm deploy`, which requires `inject-workspace-packages=true` (see `.npmrc`).
 - `pnpm.onlyBuiltDependencies` is configured in root `package.json` to allow build scripts for `esbuild` and `@oxlint/darwin-arm64`.
+- Linting coverage:
+  - `pnpm lint:oxlint` covers general JS/TS rules across the repo.
+  - `pnpm lint:eslint` covers Svelte + TypeScript + Effect rules; it ignores `**/dist/**`, `**/build/**`, and `**/.svelte-kit/**`.
 
 ## Testing Guidelines
 - Framework: Vitest (Node environment).

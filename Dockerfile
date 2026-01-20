@@ -27,6 +27,7 @@ RUN pnpm --filter web build
 
 # Flatten production artifacts
 RUN pnpm --filter web --prod deploy /isolated
+RUN mkdir -p /isolated/build && cp -R apps/web/build/. /isolated/build/
 
 # --- STAGE 3: Runner ---
 FROM node:22-slim AS runner
@@ -37,8 +38,6 @@ ENV PORT=3000
 
 # Copy the isolated bundle (node_modules + workspace code)
 COPY --from=builder /isolated .
-# Copy the built SvelteKit server entrypoint
-COPY --from=builder /app/apps/web/build ./build
 
 EXPOSE 3000
 CMD ["node", "build/index.js"]
