@@ -2,7 +2,7 @@
 FROM node:22-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable
+RUN corepack enable && corepack prepare pnpm@10.0.0 --activate
 
 # --- STAGE 2: Builder (Dependencies + Compilation) ---
 FROM base AS builder
@@ -17,7 +17,7 @@ COPY packages/tooling/package.json packages/tooling/package.json
 COPY packages/ui/package.json packages/ui/package.json
 
 RUN printf "inject-workspace-packages=true\n" >> .npmrc
-RUN pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store pnpm install --frozen-lockfile
 
 # Copy source code
 COPY . .
@@ -35,9 +35,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
+RUN groupadd -g 1001 app && useradd -u 1001 -g app -m app
 
 # Copy the isolated bundle (node_modules + workspace code)
 COPY --from=builder /isolated .
 
 EXPOSE 3000
+USER app
 CMD ["node", "build/index.js"]
