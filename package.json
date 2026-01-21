@@ -1,14 +1,28 @@
 {
   "name": "modern-product-repo",
   "private": true,
-  "packageManager": "pnpm@10.0.0",
   "scripts": {
     "dev": "pnpm --filter web dev",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
     "lint": "pnpm lint:oxlint && pnpm lint:eslint",
     "lint:oxlint": "oxlint . --deny-warnings --config packages/tooling/oxlint.json",
     "lint:eslint": "eslint . --config packages/tooling/eslint.config.js",
     "test": "vitest -c packages/tooling/vitest.config.ts"
   },
+  "devDependencies": {
+    "@effect/eslint-plugin": "^0.3.2",
+    "@typescript-eslint/utils": "^8.0.0",
+    "eslint": "^9.0.0",
+    "eslint-plugin-oxlint": "^0.1.0",
+    "eslint-plugin-svelte": "^3.14.0",
+    "oxfmt": "^0.26.0",
+    "oxlint": "^1.41.0",
+    "typescript-eslint": "^8.0.0",
+    "vite-tsconfig-paths": "^6.0.4",
+    "vitest": "^4.0.17"
+  },
+  "packageManager": "pnpm@10.0.0",
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
@@ -19,16 +33,5 @@
         "svelte"
       ]
     }
-  },
-  "devDependencies": {
-    "@effect/eslint-plugin": "^0.3.2",
-    "@typescript-eslint/utils": "^8.0.0",
-    "eslint": "^9.0.0",
-    "eslint-plugin-oxlint": "^0.1.0",
-    "eslint-plugin-svelte": "^3.14.0",
-    "oxlint": "^1.41.0",
-    "typescript-eslint": "^8.0.0",
-    "vite-tsconfig-paths": "^6.0.4",
-    "vitest": "^4.0.17"
   }
 }

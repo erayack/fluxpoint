@@ -1,6 +1,7 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
+
 - `apps/web/`: SvelteKit (SSR) app built with Vite.
 - `packages/api/`: API surface area and runtime validation.
   - Vendored Specta types go in `packages/api/src/generated/` (do not generate types in this repo).
@@ -10,6 +11,7 @@
 - `packages/tooling/`: shared configs for linting and tests (ESLint/Oxlint/Vitest).
 
 ## Build, Test, and Development Commands
+
 - `pnpm install`: install workspace dependencies (see `packageManager` in `package.json`).
 - `pnpm dev`: run the web app dev server (filters to `apps/web`).
 - `pnpm --filter web build`: production build for `apps/web` (SvelteKit SSR output).
@@ -19,6 +21,7 @@
   - Note: `pnpm test` exits with code 1 when no test files exist (Vitest default).
 
 ## Coding Style & Naming Conventions
+
 - TypeScript is `strict` (see `tsconfig.base.json`); prefer typed APIs and avoid `any`.
 - Centralized TSConfig aliases: prefer `@repo/*` imports (configured in `tsconfig.base.json` via `compilerOptions.paths`); add/update aliases there so they apply across apps/packages.
 - ESM conventions: use `.js` extensions in relative TS imports/exports (example: `export * from "./layers/index.js";`).
@@ -26,6 +29,7 @@
 - Naming: Svelte components `PascalCase.svelte`; TS modules `camelCase.ts`; use `index.ts` for barrel exports.
 
 ## Tooling & Root Binaries
+
 - Keep shared CLI tooling (e.g. `eslint`, `oxlint`, `vitest`) in the repo root `devDependencies`; run via `pnpm <script>` from the root.
 - Centralize lint/test configuration in `packages/tooling/` and reference it from root scripts.
 - For `apps/web/`, Vite resolves TSConfig aliases via `vite-tsconfig-paths` (`apps/web/vite.config.ts`).
@@ -36,10 +40,12 @@
   - `pnpm lint:eslint` covers Svelte + TypeScript + Effect rules; it ignores `**/dist/**`, `**/build/**`, and `**/.svelte-kit/**`.
 
 ## Testing Guidelines
+
 - Framework: Vitest (Node environment).
 - Naming: `*.test.ts` or `*.spec.ts`, preferably colocated with the module under test (e.g. `packages/core/src/foo.test.ts`).
 - Keep tests deterministic and fast; avoid network and time-based flakiness.
 
 ## Commit & Pull Request Guidelines
+
 - Commits: use Conventional Commits (`feat:`, `fix:`, `chore:`), optionally scoped (e.g. `feat(core): add BrowserHttpLayer`).
 - PRs: include a short description, link the relevant issue/ticket, add screenshots for UI changes in `apps/web/`, and ensure `pnpm lint` and `pnpm test` pass.

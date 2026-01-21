@@ -39,6 +39,7 @@ RUN groupadd -g 1001 app && useradd -u 1001 -g app -m app
 
 # Copy the isolated bundle (node_modules + workspace code)
 COPY --from=builder /isolated .
+RUN node -e "const fs=require('fs');const p='package.json';const pkg=fs.existsSync(p)?JSON.parse(fs.readFileSync(p,'utf8')):{};if(pkg.type!=='module'){pkg.type='module';fs.writeFileSync(p,JSON.stringify(pkg,null,2));}"
 
 EXPOSE 3000
 USER app
