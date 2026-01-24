@@ -19,6 +19,8 @@
 - `pnpm lint`: run `oxlint` + ESLint across the repo.
 - `pnpm test`: run unit tests via Vitest (`packages/tooling/vitest.config.ts`).
   - Note: `pnpm test` exits with code 1 when no test files exist (Vitest default).
+- `pnpm format`: run `oxfmt` across the repo.
+- `pnpm format:check`: check if the repo is formatted correctly.
 
 ## Coding Style & Naming Conventions
 

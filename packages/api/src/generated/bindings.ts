@@ -22,7 +22,7 @@ export type ReportAttempt = { started_at: string; finished_at: string; request_h
 
 export type LeasedEvent = { event: WebhookEvent; target_url: string; lease_expires_at: string; circuit: TargetCircuitState | null }
 
-export type ReportRequest = { worker_id: string; event_id: string; outcome: ReportOutcome; retryable: boolean | null; next_attempt_at: string | null; attempt: ReportAttempt }
+export type ReportRequest = { worker_id: string; event_id: string; outcome: ReportOutcome; retryable: boolean; next_attempt_at: string | null; attempt: ReportAttempt }
 
 export type TargetCircuitStatus = "closed" | "open"
 

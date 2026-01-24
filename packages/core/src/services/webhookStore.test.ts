@@ -235,7 +235,7 @@ describe("WebhookStoreLive", () => {
       worker_id: "worker-1",
       event_id: "event-2",
       outcome: "dead",
-      retryable: null,
+      retryable: false,
       next_attempt_at: null,
       attempt: {
         started_at: "2024-01-01T00:00:00Z",

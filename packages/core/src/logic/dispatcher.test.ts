@@ -17,7 +17,7 @@ import {
   WebhookStoreError,
   type WebhookStoreService,
 } from "../services/webhookStore.js";
-import { runDispatcherOnce } from "./dispatcher.js";
+import { runDispatcher, runDispatcherOnce } from "./dispatcher.js";
 
 const baseConfig: DispatcherConfigService = {
   workerId: "worker-1",
@@ -285,5 +285,49 @@ describe("runDispatcherOnce", () => {
     expect(executeCount).toBe(3);
     expect(reports).toHaveLength(1);
     expect(reports[0].outcome).toBe("delivered");
+  });
+});
+
+describe("runDispatcher", () => {
+  it("runs multiple poll cycles and can be interrupted", async () => {
+    let leaseCalls = 0;
+    const store: WebhookStoreService = {
+      lease: () => {
+        leaseCalls++;
+        return Effect.succeed({ events: [] });
+      },
+      report: () => Effect.succeed({ circuit: null }),
+    };
+
+    const layer = Layer.mergeAll(
+      Layer.succeed(DispatcherConfig, baseConfig),
+      Layer.succeed(WebhookStore, store),
+      Layer.succeed(
+        HttpClient.HttpClient,
+        makeClient((req) => Effect.succeed(makeResponse(req, 200))),
+      ),
+    );
+
+    const fiberExit = await Effect.runPromise(
+      Effect.provide(
+        Effect.gen(function* () {
+          const fiber = yield* Effect.fork(runDispatcher);
+
+          for (let cycle = 0; cycle < 3; cycle++) {
+            yield* TestClock.adjust(Duration.millis(baseConfig.pollIntervalMs * 1.3));
+            for (let i = 0; i < 10; i++) {
+              yield* Effect.yieldNow();
+            }
+          }
+
+          yield* Fiber.interrupt(fiber);
+          return yield* fiber.await;
+        }),
+        Layer.mergeAll(layer, TestContext.TestContext),
+      ),
+    );
+
+    expect(leaseCalls).toBeGreaterThanOrEqual(2);
+    expect(Exit.isInterrupted(fiberExit)).toBe(true);
   });
 });
