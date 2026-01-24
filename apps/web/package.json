@@ -8,11 +8,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@effect/platform": "^0.94.2",
     "@repo/api": "workspace:*",
     "@repo/core": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/svelte-query": "^5.0.0",
-    "effect": "^3.19.14",
+    "effect": "^3.19.15",
     "svelte": "^5.0.0"
   },
   "devDependencies": {

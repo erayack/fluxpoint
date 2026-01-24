@@ -1,4 +1,4 @@
-import { BrowserHttpClient, BrowserStorage } from "@effect/platform-browser";
+import { BrowserHttpClient, BrowserKeyValueStore } from "@effect/platform-browser";
 
-export const BrowserHttpLayer = BrowserHttpClient.layer;
-export const BrowserStorageLayer = BrowserStorage.layer;
+export const BrowserHttpLayer = BrowserHttpClient.layerXMLHttpRequest;
+export const BrowserKeyValueStoreLayer = BrowserKeyValueStore.layerLocalStorage;

@@ -8,7 +8,8 @@
     "lint": "pnpm lint:oxlint && pnpm lint:eslint",
     "lint:oxlint": "oxlint . --deny-warnings --config packages/tooling/oxlint.json",
     "lint:eslint": "eslint . --config packages/tooling/eslint.config.js",
-    "test": "vitest -c packages/tooling/vitest.config.ts"
+    "test": "vitest -c packages/tooling/vitest.config.ts",
+    "check:bindings": "npx tsx scripts/check-bindings.ts"
   },
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
@@ -20,7 +21,8 @@
     "oxlint": "^1.41.0",
     "typescript-eslint": "^8.0.0",
     "vite-tsconfig-paths": "^6.0.4",
-    "vitest": "^4.0.17"
+    "@vitest/coverage-v8": "^4.0.18",
+    "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@10.0.0",
   "pnpm": {
@@ -30,8 +32,19 @@
     ],
     "peerDependencyRules": {
       "ignoreMissing": [
-        "svelte"
-      ]
+        "svelte",
+        "@effect/sql",
+        "@effect/cluster",
+        "@effect/rpc",
+        "@effect/workflow",
+        "@effect/experimental"
+      ],
+      "allowedVersions": {
+        "@effect/sql": "*",
+        "@effect/cluster": "*",
+        "@effect/rpc": "*",
+        "@effect/platform": "*"
+      }
     }
   }
 }

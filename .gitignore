@@ -14,3 +14,4 @@ coverage/
 pnpm-debug.log*
 
 .DS_Store
+docs/

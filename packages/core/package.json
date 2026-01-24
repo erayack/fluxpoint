@@ -7,9 +7,13 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@effect/platform": "^0.94.1",
+    "@effect/platform": "^0.94.2",
     "@effect/platform-browser": "^0.74.0",
+    "@effect/platform-node": "^0.104.1",
     "@repo/api": "workspace:*",
-    "effect": "^3.19.14"
+    "effect": "^3.19.15"
+  },
+  "devDependencies": {
+    "msw": "^2.8.0"
   }
 }

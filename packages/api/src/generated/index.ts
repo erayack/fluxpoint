@@ -1,2 +1,2 @@
 // Vendored Specta output lives in this folder.
-export {};
+export * from "./bindings.js";
