@@ -54,7 +54,7 @@ const getHeader = (headers: Headers.Headers, key: string): string | undefined =>
 const runWithStore = <A>(
   config: DispatcherConfigService,
   client: HttpClient.HttpClient,
-  effect: Effect.Effect<A, WebhookStoreError>,
+  effect: Effect.Effect<A, WebhookStoreError, WebhookStore>,
 ) => {
   const deps = Layer.mergeAll(
     Layer.succeed(DispatcherConfig, config),
@@ -67,7 +67,7 @@ const runWithStore = <A>(
 const runWithStoreExit = <A>(
   config: DispatcherConfigService,
   client: HttpClient.HttpClient,
-  effect: Effect.Effect<A, WebhookStoreError>,
+  effect: Effect.Effect<A, WebhookStoreError, WebhookStore>,
 ) => {
   const deps = Layer.mergeAll(
     Layer.succeed(DispatcherConfig, config),
