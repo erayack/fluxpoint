@@ -13,15 +13,17 @@
   },
   "devDependencies": {
     "@effect/eslint-plugin": "^0.3.2",
+    "@types/node": "^22.0.0",
     "@typescript-eslint/utils": "^8.0.0",
+    "@vitest/coverage-v8": "^4.0.18",
     "eslint": "^9.0.0",
     "eslint-plugin-oxlint": "^0.1.0",
     "eslint-plugin-svelte": "^3.14.0",
     "oxfmt": "^0.26.0",
     "oxlint": "^1.41.0",
+    "tsx": "^4.8.1",
     "typescript-eslint": "^8.0.0",
     "vite-tsconfig-paths": "^6.0.4",
-    "@vitest/coverage-v8": "^4.0.18",
     "vitest": "^4.0.18"
   },
   "packageManager": "pnpm@10.0.0",

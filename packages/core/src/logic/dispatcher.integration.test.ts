@@ -308,9 +308,7 @@ describe("dispatcher integration", () => {
       ];
 
       server.use(
-        http.post(`${BASE_URL}/internal/dispatcher/lease`, () =>
-          HttpResponse.json({ events }),
-        ),
+        http.post(`${BASE_URL}/internal/dispatcher/lease`, () => HttpResponse.json({ events })),
         http.post(TARGET_URL, () => HttpResponse.text("OK", { status: 200 })),
         http.post(`${BASE_URL}/internal/dispatcher/report`, async ({ request }) => {
           capturedReports.push((await request.json()) as ReportRequest);
@@ -337,9 +335,7 @@ describe("dispatcher integration", () => {
       ];
 
       server.use(
-        http.post(`${BASE_URL}/internal/dispatcher/lease`, () =>
-          HttpResponse.json({ events }),
-        ),
+        http.post(`${BASE_URL}/internal/dispatcher/lease`, () => HttpResponse.json({ events })),
         http.post(TARGET_URL, async () => {
           concurrentCount++;
           maxConcurrent = Math.max(maxConcurrent, concurrentCount);
@@ -448,9 +444,7 @@ describe("dispatcher integration", () => {
         http.post(`${BASE_URL}/internal/dispatcher/lease`, () =>
           HttpResponse.json({ events: [makeLeasedEvent()] }),
         ),
-        http.post(TARGET_URL, () =>
-          HttpResponse.json({ received: true }, { status: 200 }),
-        ),
+        http.post(TARGET_URL, () => HttpResponse.json({ received: true }, { status: 200 })),
         http.post(`${BASE_URL}/internal/dispatcher/report`, async ({ request }) => {
           capturedReports.push((await request.json()) as ReportRequest);
           return HttpResponse.json({ circuit: null });

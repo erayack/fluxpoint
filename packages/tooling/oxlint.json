@@ -1,4 +1,48 @@
 {
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
   "ignorePatterns": ["**/node_modules/**", "**/.svelte-kit/**", "**/dist/**", "**/build/**"],
-  "rules": {}
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "plugins": ["typescript", "unicorn", "import"],
+  "rules": {
+    "no-console": "warn",
+    "no-debugger": "error",
+    "no-unused-vars": "error",
+    "no-alert": "error",
+    "eqeqeq": "error",
+    "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
+    "import/no-cycle": "error"
+  },
+  "overrides": [
+    {
+      "files": ["**/*.test.ts", "**/*.spec.ts"],
+      "rules": {
+        "no-console": "off",
+        "typescript/no-non-null-assertion": "off",
+        "unicorn/no-array-sort": "off"
+      }
+    },
+    {
+      "files": ["**/scripts/**/*.ts", "**/scripts/**/*.js"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["**/*.svelte"],
+      "rules": {
+        "import/no-unassigned-import": "off"
+      }
+    },
+    {
+      "files": ["**/index.ts"],
+      "rules": {
+        "unicorn/require-module-specifiers": "off"
+      }
+    }
+  ]
 }

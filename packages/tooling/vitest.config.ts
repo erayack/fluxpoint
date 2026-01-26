@@ -11,7 +11,14 @@ export default defineConfig({
       reporter: ["text", "json", "html"],
       reportsDirectory: "./coverage",
       include: ["packages/*/src/**/*.ts", "apps/*/src/**/*.ts"],
-      exclude: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.svelte-kit/**", "**/*.test.ts", "**/*.spec.ts"],
+      exclude: [
+        "**/node_modules/**",
+        "**/dist/**",
+        "**/build/**",
+        "**/.svelte-kit/**",
+        "**/*.test.ts",
+        "**/*.spec.ts",
+      ],
     },
   },
 });

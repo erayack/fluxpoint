@@ -38,7 +38,7 @@ const makeLeasedEvent = (options?: { attempts?: number; id?: string }): LeasedEv
     endpoint_id: "endpoint-1",
     provider: "test",
     headers: { "content-type": "application/json" },
-    payload: "{\"ok\":true}",
+    payload: '{"ok":true}',
     status: "pending",
     attempts: options?.attempts ?? 0,
     received_at: "2024-01-01T00:00:00Z",
@@ -101,17 +101,12 @@ const setup = (options: {
 
 type TestLayer = Layer.Layer<DispatcherConfigService | WebhookStoreService | HttpClient.HttpClient>;
 
-const runOnce = (layer: TestLayer) =>
-  Effect.runPromise(Effect.provide(runDispatcherOnce, layer));
+const runOnce = (layer: TestLayer) => Effect.runPromise(Effect.provide(runDispatcherOnce, layer));
 
 const runOnceExit = (layer: TestLayer) =>
   Effect.runPromiseExit(Effect.provide(runDispatcherOnce, layer));
 
-const runOnceWithTestClock = (
-  layer: TestLayer,
-  advanceStepsMs: number[],
-  yieldsBetweenSteps = 1,
-) =>
+const runOnceWithTestClock = (layer: TestLayer, advanceStepsMs: number[], yieldsBetweenSteps = 1) =>
   Effect.runPromise(
     Effect.provide(
       Effect.gen(function* () {

@@ -14,18 +14,14 @@ const program = Effect.gen(function* () {
 
 const runConfig = (env: Record<string, string>) => {
   const provider = ConfigProvider.fromMap(new Map(Object.entries(env)));
-  const effect = Effect.withConfigProvider(provider)(
-    Effect.provide(program, DispatcherConfigLive),
-  );
+  const effect = Effect.withConfigProvider(provider)(Effect.provide(program, DispatcherConfigLive));
 
   return Effect.runPromise(effect);
 };
 
 const getConfigFailure = async (env: Record<string, string>) => {
   const provider = ConfigProvider.fromMap(new Map(Object.entries(env)));
-  const effect = Effect.withConfigProvider(provider)(
-    Effect.provide(program, DispatcherConfigLive),
-  );
+  const effect = Effect.withConfigProvider(provider)(Effect.provide(program, DispatcherConfigLive));
   const exit = await Effect.runPromiseExit(effect);
 
   expect(Exit.isFailure(exit)).toBe(true);

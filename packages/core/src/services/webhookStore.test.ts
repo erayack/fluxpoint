@@ -128,9 +128,7 @@ describe("WebhookStoreLive", () => {
 
     const request = getRequest();
     expect(request?.method).toBe("POST");
-    expect(request?.url).toBe(
-      "https://internal.example.test/internal/dispatcher/lease",
-    );
+    expect(request?.url).toBe("https://internal.example.test/internal/dispatcher/lease");
 
     const headers = request?.headers;
     expect(headers && getHeader(headers, "content-type")).toBe("application/json");
@@ -162,10 +160,10 @@ describe("WebhookStoreLive", () => {
         started_at: "2024-01-01T00:00:00Z",
         finished_at: "2024-01-01T00:00:01Z",
         request_headers: { "content-type": "application/json" },
-        request_body: "{\"ok\":true}",
+        request_body: '{"ok":true}',
         response_status: 200,
         response_headers: { "content-type": "application/json" },
-        response_body: "{\"ok\":true}",
+        response_body: '{"ok":true}',
         error_kind: null,
         error_message: null,
       },
@@ -179,9 +177,7 @@ describe("WebhookStoreLive", () => {
 
     const request = getRequest();
     expect(request?.method).toBe("POST");
-    expect(request?.url).toBe(
-      "https://internal.example.test/internal/dispatcher/report",
-    );
+    expect(request?.url).toBe("https://internal.example.test/internal/dispatcher/report");
 
     const headers = request?.headers;
     expect(headers && getHeader(headers, "content-type")).toBe("application/json");

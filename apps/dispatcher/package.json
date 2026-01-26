@@ -1,0 +1,19 @@
+{
+  "name": "dispatcher",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/main.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@effect/platform": "^0.94.2",
+    "@effect/platform-node": "^0.104.1",
+    "@repo/api": "workspace:*",
+    "@repo/core": "workspace:*",
+    "effect": "^3.19.15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21"
+  }
+}
