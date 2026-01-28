@@ -1,4 +1,4 @@
-import { Duration, Effect, Exit, Fiber, Layer } from "effect";
+import { Duration, Effect, Either, Exit, Fiber, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 import {
   HttpClient,
@@ -17,7 +17,7 @@ import {
   WebhookStoreError,
   type WebhookStoreService,
 } from "../services/webhookStore.js";
-import { runDispatcher, runDispatcherOnce } from "./dispatcher.js";
+import { runDispatcher, runDispatcherOnce, classifyDelivery } from "./dispatcher.js";
 
 const baseConfig: DispatcherConfigService = {
   workerId: "worker-1",
@@ -164,7 +164,7 @@ describe("runDispatcherOnce", () => {
     expect(report.attempt.response_status).toBeNull();
   });
 
-  it("marks network errors as dead when max attempts reached", async () => {
+  it("marks network errors as retry (Rust backend handles attempt limits)", async () => {
     const client = makeClient((req) =>
       Effect.fail(new HttpClientError.RequestError({ request: req, reason: "Transport" })),
     );
@@ -178,7 +178,7 @@ describe("runDispatcherOnce", () => {
 
     expect(reports).toHaveLength(1);
     const report = reports[0];
-    expect(report.outcome).toBe("dead");
+    expect(report.outcome).toBe("retry");
     expect(report.retryable).toBe(true);
     expect(report.attempt.error_kind).toBe("network");
     expect(report.attempt.response_status).toBeNull();
@@ -202,7 +202,7 @@ describe("runDispatcherOnce", () => {
     expect(report.attempt.error_message).toBe("Request timed out");
   });
 
-  it("marks timeouts as dead when max attempts reached", async () => {
+  it("marks timeouts as retry (Rust backend handles attempt limits)", async () => {
     const client = makeClient(() => Effect.never);
     const { layer, reports } = setup({
       events: [makeLeasedEvent({ attempts: 2 })],
@@ -214,7 +214,7 @@ describe("runDispatcherOnce", () => {
 
     expect(reports).toHaveLength(1);
     const report = reports[0];
-    expect(report.outcome).toBe("dead");
+    expect(report.outcome).toBe("retry");
     expect(report.retryable).toBe(true);
     expect(report.attempt.error_kind).toBe("timeout");
     expect(report.attempt.error_message).toBe("Request timed out");
@@ -280,6 +280,96 @@ describe("runDispatcherOnce", () => {
     expect(executeCount).toBe(3);
     expect(reports).toHaveLength(1);
     expect(reports[0].outcome).toBe("delivered");
+  });
+});
+
+describe("classifyDelivery", () => {
+  const makeTestResponse = (status: number): HttpClientResponse.HttpClientResponse =>
+    HttpClientResponse.fromWeb(
+      HttpClientRequest.get("https://example.test"),
+      new Response(status === 204 ? null : "", { status }),
+    );
+
+  it.each([
+    { status: 200, outcome: "delivered", retryable: false },
+    { status: 201, outcome: "delivered", retryable: false },
+    { status: 204, outcome: "delivered", retryable: false },
+    { status: 500, outcome: "retry", retryable: true },
+    { status: 502, outcome: "retry", retryable: true },
+    { status: 503, outcome: "retry", retryable: true },
+    { status: 408, outcome: "retry", retryable: true },
+    { status: 429, outcome: "retry", retryable: true },
+    { status: 301, outcome: "dead", retryable: false },
+    { status: 302, outcome: "dead", retryable: false },
+    { status: 307, outcome: "dead", retryable: false },
+    { status: 400, outcome: "dead", retryable: false },
+    { status: 401, outcome: "dead", retryable: false },
+    { status: 403, outcome: "dead", retryable: false },
+    { status: 404, outcome: "dead", retryable: false },
+    { status: 422, outcome: "dead", retryable: false },
+  ])("classifies HTTP $status as $outcome (retryable=$retryable)", ({ status, outcome, retryable }) => {
+    const result = Either.right(makeTestResponse(status));
+    expect(classifyDelivery(result)).toEqual({ outcome, retryable });
+  });
+
+  it("classifies TimeoutException as retry", () => {
+    const result = Either.left({ _tag: "TimeoutException" } as const);
+    expect(classifyDelivery(result)).toEqual({ outcome: "retry", retryable: true });
+  });
+
+  it("classifies RequestError (network) as retry", () => {
+    const result = Either.left(
+      new HttpClientError.RequestError({
+        request: HttpClientRequest.get("https://example.test"),
+        reason: "Transport",
+      }),
+    );
+    expect(classifyDelivery(result)).toEqual({ outcome: "retry", retryable: true });
+  });
+
+  it("classifies ResponseError with 5xx as retry", () => {
+    const result = Either.left(
+      new HttpClientError.ResponseError({
+        request: HttpClientRequest.get("https://example.test"),
+        response: makeTestResponse(503),
+        reason: "StatusCode",
+      }),
+    );
+    expect(classifyDelivery(result)).toEqual({ outcome: "retry", retryable: true });
+  });
+
+  it("classifies ResponseError with 4xx as dead", () => {
+    const result = Either.left(
+      new HttpClientError.ResponseError({
+        request: HttpClientRequest.get("https://example.test"),
+        response: makeTestResponse(400),
+        reason: "StatusCode",
+      }),
+    );
+    expect(classifyDelivery(result)).toEqual({ outcome: "dead", retryable: false });
+  });
+
+  it("classifies ResponseError with Decode reason on 2xx as delivered", () => {
+    const result = Either.left(
+      new HttpClientError.ResponseError({
+        request: HttpClientRequest.get("https://example.test"),
+        response: makeTestResponse(200),
+        reason: "Decode",
+        description: "Failed to parse JSON",
+      }),
+    );
+    expect(classifyDelivery(result)).toEqual({ outcome: "delivered", retryable: false });
+  });
+
+  it("classifies ResponseError with EmptyBody reason on 2xx as delivered", () => {
+    const result = Either.left(
+      new HttpClientError.ResponseError({
+        request: HttpClientRequest.get("https://example.test"),
+        response: makeTestResponse(200),
+        reason: "EmptyBody",
+      }),
+    );
+    expect(classifyDelivery(result)).toEqual({ outcome: "delivered", retryable: false });
   });
 });
 

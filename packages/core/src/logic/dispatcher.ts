@@ -30,6 +30,11 @@ type DeliveryResult = Either.Either<
   HttpClientError.HttpClientError | { _tag: "TimeoutException" }
 >;
 
+export type ClassificationResult = {
+  outcome: ReportOutcome;
+  retryable: boolean;
+};
+
 const toISO = (ms: number): string => new Date(ms).toISOString();
 
 const sleepWithJitter = (baseMs: number) =>
@@ -41,22 +46,6 @@ const sleepWithJitter = (baseMs: number) =>
 
 const isRetryableStatus = (status: number): boolean =>
   status >= 500 || status === 408 || status === 429;
-
-const classifyHttpStatus = (status: number): ReportOutcome => {
-  if (status >= 200 && status < 300) return "delivered";
-  if (isRetryableStatus(status)) return "retry";
-  return "dead";
-};
-
-const resolveOutcome = (
-  result: DeliveryResult,
-  currentAttempts: number,
-  maxAttempts: number,
-): ReportOutcome => {
-  if (Either.isRight(result)) return classifyHttpStatus(result.right.status);
-  if (currentAttempts + 1 >= maxAttempts) return "dead";
-  return "retry";
-};
 
 const classifyError = (
   error: HttpClientError.HttpClientError | { _tag: "TimeoutException" },
@@ -78,15 +67,40 @@ const isRetryableFailure = (error: RetryableFailure): boolean => {
   return false;
 };
 
-const isRetryableResult = (result: DeliveryResult): boolean => {
+export const classifyDelivery = (result: DeliveryResult): ClassificationResult => {
   if (Either.isRight(result)) {
     const status = result.right.status;
-    return isRetryableStatus(status);
+    if (status >= 200 && status < 300) {
+      return { outcome: "delivered", retryable: false };
+    }
+    if (isRetryableStatus(status)) {
+      return { outcome: "retry", retryable: true };
+    }
+    return { outcome: "dead", retryable: false };
   }
 
   const error = result.left;
-  if (error._tag === "TimeoutException") return true;
-  return isRetryableFailure(error);
+  if (error._tag === "TimeoutException" || error._tag === "RequestError") {
+    return { outcome: "retry", retryable: true };
+  }
+  if (error._tag === "ResponseError") {
+    const status = error.response.status;
+    const reason = error.reason;
+    if (reason === "StatusCode") {
+      if (isRetryableStatus(status)) {
+        return { outcome: "retry", retryable: true };
+      }
+      return { outcome: "dead", retryable: false };
+    }
+    if (status >= 200 && status < 300) {
+      return { outcome: "delivered", retryable: false };
+    }
+    if (isRetryableStatus(status)) {
+      return { outcome: "retry", retryable: true };
+    }
+    return { outcome: "dead", retryable: false };
+  }
+  return { outcome: "dead", retryable: false };
 };
 
 const buildAttempt = (
@@ -181,16 +195,14 @@ const deliverOne = (leased: LeasedEvent) =>
     const finishedAt = yield* Clock.currentTimeMillis.pipe(Effect.map(toISO));
 
     const attempt = yield* buildAttempt(result, leased, startedAt, finishedAt);
-    const outcome = resolveOutcome(result, leased.event.attempts, config.maxAttempts);
-    const retryable = isRetryableResult(result);
-    const nextAttemptAt = null;
+    const { outcome, retryable } = classifyDelivery(result);
 
     const report: ReportRequest = {
       worker_id: config.workerId,
       event_id: leased.event.id,
       outcome,
-      next_attempt_at: nextAttemptAt,
       retryable,
+      next_attempt_at: null,
       attempt,
     };
 

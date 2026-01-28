@@ -270,7 +270,7 @@ describe("dispatcher integration", () => {
       expect(capturedReports[0].attempt.error_kind).toBe("timeout");
     });
 
-    it("marks as dead when max attempts reached on timeout", async () => {
+    it("reports timeout as retry (Rust backend handles attempt limits)", async () => {
       const capturedReports: ReportRequest[] = [];
 
       server.use(
@@ -293,7 +293,8 @@ describe("dispatcher integration", () => {
       );
 
       expect(capturedReports).toHaveLength(1);
-      expect(capturedReports[0].outcome).toBe("dead");
+      expect(capturedReports[0].outcome).toBe("retry");
+      expect(capturedReports[0].retryable).toBe(true);
     });
   });
 
