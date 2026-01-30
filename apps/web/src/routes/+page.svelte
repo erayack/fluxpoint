@@ -129,7 +129,7 @@
         {#each eventsQuery.data.events as item (item.event.id)}
           <tr>
             <td>
-              <a href={resolve(`/events/${item.event.id}`)}>{item.event.id.slice(0, 8)}...</a>
+              <a href={resolve("/events/[eventId]", { eventId: item.event.id })}>{item.event.id.slice(0, 8)}...</a>
             </td>
             <td>{item.event.provider}</td>
             <td>
