@@ -36,6 +36,9 @@ importers:
       oxlint:
         specifier: ^1.41.0
         version: 1.41.0
+      svelte-eslint-parser:
+        specifier: ^1.4.1
+        version: 1.4.1(svelte@5.47.1)
       tsx:
         specifier: ^4.8.1
         version: 4.21.0
@@ -86,8 +89,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@tanstack/svelte-query':
-        specifier: ^5.0.0
-        version: 5.90.2(svelte@5.47.1)
+        specifier: ^6.0.0
+        version: 6.0.18(svelte@5.47.1)
       effect:
         specifier: ^3.19.15
         version: 3.19.15
@@ -928,13 +931,13 @@ packages:
       svelte: ^5.0.0
       vite: ^6.3.0 || ^7.0.0
 
-  '@tanstack/query-core@5.90.2':
-    resolution: {integrity: sha512-k/TcR3YalnzibscALLwxeiLUub6jN5EDLwKDiO7q5f4ICEoptJ+n9+7vcEFy5/x/i6Q+Lb/tXrsKCggf5uQJXQ==}
+  '@tanstack/query-core@5.90.20':
+    resolution: {integrity: sha512-OMD2HLpNouXEfZJWcKeVKUgQ5n+n3A2JFmBaScpNDUqSrQSjiveC7dKMe53uJUg1nDG16ttFPz2xfilz6i2uVg==}
 
-  '@tanstack/svelte-query@5.90.2':
-    resolution: {integrity: sha512-owjnp0w8sOXlMhLZhucHrsYvCjgjHrVyII/wlqMGefxKFyroZS3xCwTee+IUx7UHbL+QmKr/HQTeTqhgxmxPQw==}
+  '@tanstack/svelte-query@6.0.18':
+    resolution: {integrity: sha512-iGS8osfrIVUW5pkV4Ig6pspNIMtiNjGnVTNJKDas0m/QaNDFFIKbgg74rCzcjwrTIvO38tMpzb4VUKklvAmjxw==}
     peerDependencies:
-      svelte: ^3.54.0 || ^4.0.0 || ^5.0.0
+      svelte: ^5.25.0
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -2599,11 +2602,11 @@ snapshots:
       vite: 7.3.1(@types/node@22.19.7)(tsx@4.21.0)
       vitefu: 1.1.1(vite@7.3.1(@types/node@22.19.7)(tsx@4.21.0))
 
-  '@tanstack/query-core@5.90.2': {}
+  '@tanstack/query-core@5.90.20': {}
 
-  '@tanstack/svelte-query@5.90.2(svelte@5.47.1)':
+  '@tanstack/svelte-query@6.0.18(svelte@5.47.1)':
     dependencies:
-      '@tanstack/query-core': 5.90.2
+      '@tanstack/query-core': 5.90.20
       svelte: 5.47.1
 
   '@types/chai@5.2.3':
