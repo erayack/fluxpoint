@@ -86,7 +86,7 @@ const setup = (options: {
       reports.push(request);
       return options.reportEffect
         ? options.reportEffect(request)
-        : Effect.succeed({ circuit: null });
+        : Effect.succeed({ circuit: null, final_outcome: "delivered" as const });
     },
   };
 
@@ -99,7 +99,7 @@ const setup = (options: {
   return { layer, reports };
 };
 
-type TestLayer = Layer.Layer<DispatcherConfigService | WebhookStoreService | HttpClient.HttpClient>;
+type TestLayer = Layer.Layer<DispatcherConfig | WebhookStore | HttpClient.HttpClient>;
 
 const runOnce = (layer: TestLayer) => Effect.runPromise(Effect.provide(runDispatcherOnce, layer));
 
@@ -307,10 +307,13 @@ describe("classifyDelivery", () => {
     { status: 403, outcome: "dead", retryable: false },
     { status: 404, outcome: "dead", retryable: false },
     { status: 422, outcome: "dead", retryable: false },
-  ])("classifies HTTP $status as $outcome (retryable=$retryable)", ({ status, outcome, retryable }) => {
-    const result = Either.right(makeTestResponse(status));
-    expect(classifyDelivery(result)).toEqual({ outcome, retryable });
-  });
+  ])(
+    "classifies HTTP $status as $outcome (retryable=$retryable)",
+    ({ status, outcome, retryable }) => {
+      const result = Either.right(makeTestResponse(status));
+      expect(classifyDelivery(result)).toEqual({ outcome, retryable });
+    },
+  );
 
   it("classifies TimeoutException as retry", () => {
     const result = Either.left({ _tag: "TimeoutException" } as const);
@@ -381,7 +384,7 @@ describe("runDispatcher", () => {
         leaseCalls++;
         return Effect.succeed({ events: [] });
       },
-      report: () => Effect.succeed({ circuit: null }),
+      report: () => Effect.succeed({ circuit: null, final_outcome: "delivered" as const }),
     };
 
     const layer = Layer.mergeAll(
