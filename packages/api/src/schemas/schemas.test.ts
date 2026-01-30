@@ -2,12 +2,20 @@ import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
+  GetEventResponseSchema,
   LeaseResponseSchema,
   LeasedEventSchema,
+  ListAttemptsResponseSchema,
+  ListEventsResponseSchema,
+  ReplayEventResponseSchema,
   ReportResponseSchema,
   TargetCircuitStateSchema,
+  WebhookAttemptErrorKindSchema,
+  WebhookAttemptLogSchema,
+  WebhookEventListItemSchema,
   WebhookEventSchema,
   WebhookEventStatusSchema,
+  WebhookEventSummarySchema,
 } from "./index.js";
 
 const validWebhookEvent = {
@@ -37,6 +45,38 @@ const validLeasedEvent = {
   event: validWebhookEvent,
   target_url: "https://example.com/webhook",
   lease_expires_at: "2024-01-01T00:01:00Z",
+  circuit: null,
+};
+
+const validAttemptLog = {
+  id: "att_123",
+  event_id: "evt_123",
+  attempt_no: 1,
+  started_at: "2024-01-01T00:00:00Z",
+  finished_at: "2024-01-01T00:00:01Z",
+  request_headers: { "content-type": "application/json" },
+  request_body: '{"test":true}',
+  response_status: 200,
+  response_headers: { "x-request-id": "abc" },
+  response_body: '{"ok":true}',
+  error_kind: null,
+  error_message: null,
+};
+
+const validEventSummary = {
+  id: "evt_123",
+  endpoint_id: "ep_456",
+  provider: "stripe",
+  status: "pending" as const,
+  attempts: 0,
+  received_at: "2024-01-01T00:00:00Z",
+  next_attempt_at: null,
+  last_error: null,
+};
+
+const validEventListItem = {
+  event: validEventSummary,
+  target_url: "https://example.com/webhook",
   circuit: null,
 };
 
@@ -264,6 +304,213 @@ describe("ReportResponseSchema", () => {
   it("rejects circuit with wrong types", () => {
     const result = Schema.decodeUnknownEither(ReportResponseSchema)({
       circuit: { ...validCircuit, consecutive_failures: "many" },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("WebhookAttemptErrorKindSchema", () => {
+  it("accepts valid error kinds", () => {
+    const kinds = ["timeout", "network", "invalid_response", "unexpected"];
+    for (const kind of kinds) {
+      const result = Schema.decodeUnknownEither(WebhookAttemptErrorKindSchema)(kind);
+      expect(Either.isRight(result)).toBe(true);
+    }
+  });
+
+  it("rejects invalid error kind", () => {
+    const result = Schema.decodeUnknownEither(WebhookAttemptErrorKindSchema)("invalid");
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("WebhookAttemptLogSchema", () => {
+  it("accepts valid attempt log", () => {
+    const result = Schema.decodeUnknownEither(WebhookAttemptLogSchema)(validAttemptLog);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts attempt log with nullable fields as null", () => {
+    const attemptWithNulls = {
+      ...validAttemptLog,
+      response_status: null,
+      response_headers: null,
+      response_body: null,
+      error_kind: null,
+      error_message: null,
+    };
+    const result = Schema.decodeUnknownEither(WebhookAttemptLogSchema)(attemptWithNulls);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts attempt log with error fields populated", () => {
+    const attemptWithError = {
+      ...validAttemptLog,
+      response_status: null,
+      response_headers: null,
+      response_body: null,
+      error_kind: "timeout",
+      error_message: "Request timed out",
+    };
+    const result = Schema.decodeUnknownEither(WebhookAttemptLogSchema)(attemptWithError);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects invalid error_kind", () => {
+    const result = Schema.decodeUnknownEither(WebhookAttemptLogSchema)({
+      ...validAttemptLog,
+      error_kind: "invalid_kind",
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("ListAttemptsResponseSchema", () => {
+  it("accepts empty attempts array", () => {
+    const result = Schema.decodeUnknownEither(ListAttemptsResponseSchema)({ attempts: [] });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts valid attempts array", () => {
+    const result = Schema.decodeUnknownEither(ListAttemptsResponseSchema)({
+      attempts: [validAttemptLog],
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects missing attempts key", () => {
+    const result = Schema.decodeUnknownEither(ListAttemptsResponseSchema)({});
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("WebhookEventSummarySchema", () => {
+  it("accepts valid event summary", () => {
+    const result = Schema.decodeUnknownEither(WebhookEventSummarySchema)(validEventSummary);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts event summary with nullable fields populated", () => {
+    const fullSummary = {
+      ...validEventSummary,
+      next_attempt_at: "2024-01-01T00:01:00Z",
+      last_error: "Connection timeout",
+    };
+    const result = Schema.decodeUnknownEither(WebhookEventSummarySchema)(fullSummary);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects invalid status", () => {
+    const result = Schema.decodeUnknownEither(WebhookEventSummarySchema)({
+      ...validEventSummary,
+      status: "unknown",
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("WebhookEventListItemSchema", () => {
+  it("accepts valid event list item without circuit", () => {
+    const result = Schema.decodeUnknownEither(WebhookEventListItemSchema)(validEventListItem);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts event list item with circuit", () => {
+    const withCircuit = { ...validEventListItem, circuit: validCircuit };
+    const result = Schema.decodeUnknownEither(WebhookEventListItemSchema)(withCircuit);
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects invalid circuit shape", () => {
+    const result = Schema.decodeUnknownEither(WebhookEventListItemSchema)({
+      ...validEventListItem,
+      circuit: { invalid: true },
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("ListEventsResponseSchema", () => {
+  it("accepts empty events array", () => {
+    const result = Schema.decodeUnknownEither(ListEventsResponseSchema)({
+      events: [],
+      next_before: null,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts valid events array", () => {
+    const result = Schema.decodeUnknownEither(ListEventsResponseSchema)({
+      events: [validEventListItem],
+      next_before: null,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts next_before as string", () => {
+    const result = Schema.decodeUnknownEither(ListEventsResponseSchema)({
+      events: [validEventListItem],
+      next_before: "2024-01-01T00:00:00Z",
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects missing events key", () => {
+    const result = Schema.decodeUnknownEither(ListEventsResponseSchema)({
+      next_before: null,
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("GetEventResponseSchema", () => {
+  it("accepts valid response", () => {
+    const result = Schema.decodeUnknownEither(GetEventResponseSchema)({
+      event: validWebhookEvent,
+      target_url: "https://example.com/webhook",
+      circuit: null,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts response with circuit", () => {
+    const result = Schema.decodeUnknownEither(GetEventResponseSchema)({
+      event: validWebhookEvent,
+      target_url: "https://example.com/webhook",
+      circuit: validCircuit,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects missing event", () => {
+    const result = Schema.decodeUnknownEither(GetEventResponseSchema)({
+      target_url: "https://example.com/webhook",
+      circuit: null,
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("ReplayEventResponseSchema", () => {
+  it("accepts valid response", () => {
+    const result = Schema.decodeUnknownEither(ReplayEventResponseSchema)({
+      event: validEventSummary,
+      circuit: null,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts response with circuit", () => {
+    const result = Schema.decodeUnknownEither(ReplayEventResponseSchema)({
+      event: validEventSummary,
+      circuit: validCircuit,
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("rejects missing event", () => {
+    const result = Schema.decodeUnknownEither(ReplayEventResponseSchema)({
+      circuit: null,
     });
     expect(Either.isLeft(result)).toBe(true);
   });
