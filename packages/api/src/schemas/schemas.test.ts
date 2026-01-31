@@ -2,6 +2,8 @@ import { Either, Schema } from "effect";
 import { describe, expect, it } from "vitest";
 
 import {
+  ApiErrorCodeSchema,
+  ApiErrorResponseSchema,
   GetEventResponseSchema,
   LeaseResponseSchema,
   LeasedEventSchema,
@@ -511,6 +513,88 @@ describe("ReplayEventResponseSchema", () => {
   it("rejects missing event", () => {
     const result = Schema.decodeUnknownEither(ReplayEventResponseSchema)({
       circuit: null,
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("ApiErrorCodeSchema", () => {
+  it("accepts all valid error codes", () => {
+    const codes = [
+      "validation",
+      "unauthorized",
+      "rate_limited",
+      "not_found",
+      "conflict",
+      "database",
+      "internal",
+    ];
+    for (const code of codes) {
+      const result = Schema.decodeUnknownEither(ApiErrorCodeSchema)(code);
+      expect(Either.isRight(result)).toBe(true);
+    }
+  });
+
+  it("rejects invalid error code", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorCodeSchema)("unknown");
+    expect(Either.isLeft(result)).toBe(true);
+  });
+});
+
+describe("ApiErrorResponseSchema", () => {
+  it("accepts valid error response", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+      code: "validation",
+      message: "Invalid input",
+    });
+    expect(Either.isRight(result)).toBe(true);
+  });
+
+  it("accepts all error codes in response", () => {
+    const codes = [
+      "validation",
+      "unauthorized",
+      "rate_limited",
+      "not_found",
+      "conflict",
+      "database",
+      "internal",
+    ];
+    for (const code of codes) {
+      const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+        code,
+        message: "Error occurred",
+      });
+      expect(Either.isRight(result)).toBe(true);
+    }
+  });
+
+  it("rejects missing code", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+      message: "Error occurred",
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects missing message", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+      code: "validation",
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects invalid code literal (fail-fast)", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+      code: "invalid_code",
+      message: "Error occurred",
+    });
+    expect(Either.isLeft(result)).toBe(true);
+  });
+
+  it("rejects non-string message", () => {
+    const result = Schema.decodeUnknownEither(ApiErrorResponseSchema)({
+      code: "validation",
+      message: 123,
     });
     expect(Either.isLeft(result)).toBe(true);
   });

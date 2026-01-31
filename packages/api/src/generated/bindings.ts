@@ -6,6 +6,8 @@ export type ReplayEventRequest = { reset_circuit: boolean | null }
 
 export type LeaseResponse = { events: LeasedEvent[] }
 
+export type ApiErrorCode = "validation" | "unauthorized" | "rate_limited" | "not_found" | "conflict" | "database" | "internal"
+
 export type WebhookEvent = { id: string; endpoint_id: string; provider: string; headers: { [key: string]: string }; payload: string; status: WebhookEventStatus; attempts: number; received_at: string; next_attempt_at: string | null; lease_expires_at: string | null; leased_by: string | null; last_error: string | null }
 
 export type ReportOutcome = "delivered" | "retry" | "dead"
@@ -23,6 +25,8 @@ export type WebhookEventListItem = { event: WebhookEventSummary; target_url: str
 export type ReportResponse = { circuit: TargetCircuitState | null; final_outcome: ReportOutcome }
 
 export type TargetCircuitStatus = "closed" | "open"
+
+export type ApiErrorResponse = { code: ApiErrorCode; message: string }
 
 export type WebhookEventSummary = { id: string; endpoint_id: string; provider: string; status: WebhookEventStatus; attempts: number; received_at: string; next_attempt_at: string | null; last_error: string | null }
 

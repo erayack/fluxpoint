@@ -12,11 +12,8 @@ import type { LeasedEvent, ReportRequest, ReportResponse } from "@repo/api";
 
 import type { DispatcherConfigService } from "../services/dispatcherConfig.js";
 import { DispatcherConfig } from "../services/dispatcherConfig.js";
-import {
-  WebhookStore,
-  WebhookStoreError,
-  type WebhookStoreService,
-} from "../services/webhookStore.js";
+import { WebhookStore, type WebhookStoreService } from "../services/webhookStore.js";
+import { ApiError } from "../errors/apiError.js";
 import { runDispatcher, runDispatcherOnce, classifyDelivery } from "./dispatcher.js";
 
 const baseConfig: DispatcherConfigService = {
@@ -222,9 +219,8 @@ describe("runDispatcherOnce", () => {
 
   it("does not fail the poll cycle when reporting fails", async () => {
     const client = makeClient((req) => Effect.succeed(makeResponse(req, 200)));
-    const reportError = new WebhookStoreError({
-      reason: "ApiError",
-      message: "report failed",
+    const reportError = new ApiError({
+      apiError: { code: "internal", message: "report failed" },
     });
     const { layer } = setup({
       events: [makeLeasedEvent()],

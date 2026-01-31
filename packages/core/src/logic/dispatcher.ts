@@ -1,4 +1,4 @@
-import { Effect, Schedule, Duration, Random, Clock, Either } from "effect";
+import { Effect, Schedule, Duration, Random, Clock, Either, Match } from "effect";
 import {
   HttpClient,
   HttpClientRequest,
@@ -206,9 +206,24 @@ const deliverOne = (leased: LeasedEvent) =>
       attempt,
     };
 
-    yield* store
-      .report(report)
-      .pipe(Effect.catchAll((e) => Effect.logError("Failed to report delivery outcome", e)));
+    yield* store.report(report).pipe(
+      Effect.catchTag("ApiError", (err) =>
+        Match.value(err.apiError.code).pipe(
+          Match.when("rate_limited", () =>
+            Effect.logWarning("Rate limited when reporting, will retry on next cycle"),
+          ),
+          Match.orElse(() =>
+            Effect.logError(`Failed to report delivery outcome: ${err.apiError.message}`),
+          ),
+        ),
+      ),
+      Effect.catchTag("NetworkError", (err) =>
+        Effect.logError(`Network error reporting delivery: ${err.message}`),
+      ),
+      Effect.catchTag("ParseError", (err) =>
+        Effect.logError(`Parse error reporting delivery: ${err.message}`),
+      ),
+    );
   });
 
 const deliverBatch = (events: readonly LeasedEvent[]) =>
@@ -228,7 +243,18 @@ export const runDispatcherOnce = Effect.gen(function* () {
   const config = yield* DispatcherConfig;
   const store = yield* WebhookStore;
 
-  const leaseResp = yield* store.lease(config.batchSize, config.leaseMs);
+  const leaseResp = yield* store.lease(config.batchSize, config.leaseMs).pipe(
+    Effect.catchTag("ApiError", (err) =>
+      Match.value(err.apiError.code).pipe(
+        Match.when("rate_limited", () =>
+          Effect.logWarning("Rate limited on lease, backing off").pipe(
+            Effect.map(() => ({ events: [] as const })),
+          ),
+        ),
+        Match.orElse(() => Effect.fail(err)),
+      ),
+    ),
+  );
 
   if (leaseResp.events.length === 0) {
     yield* Effect.logDebug("No events to deliver");

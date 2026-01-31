@@ -1,4 +1,4 @@
-import { Context, Data, Effect, Layer } from "effect";
+import { Context, Effect, Layer, pipe } from "effect";
 import {
   HttpClient,
   HttpClientRequest,
@@ -7,29 +7,30 @@ import {
   type HttpClientError,
 } from "@effect/platform";
 import type { LeaseResponse, ReportRequest, ReportResponse } from "@repo/api";
-import { LeaseResponseSchema, ReportResponseSchema } from "@repo/api";
+import {
+  ApiErrorResponseSchema,
+  LeaseResponseSchema,
+  ReportResponseSchema,
+} from "@repo/api";
 import { DispatcherConfig } from "./dispatcherConfig.js";
+import { ApiError, NetworkError, ParseError, isTransientApiError } from "../errors/apiError.js";
+import { transientApiRetrySchedule } from "../utils/retryPolicy.js";
 
 const mapBodyError = (e: HttpBody.HttpBodyError) =>
-  new WebhookStoreError({
-    reason: "ParseError",
+  new ParseError({
     message: "Failed to serialize request body",
     cause: e,
   });
-
-export class WebhookStoreError extends Data.TaggedError("WebhookStoreError")<{
-  readonly reason: "NetworkError" | "ApiError" | "ParseError";
-  readonly message: string;
-  readonly cause?: unknown;
-}> {}
 
 export interface WebhookStoreService {
   readonly lease: (
     limit: number,
     leaseMs: number,
-  ) => Effect.Effect<LeaseResponse, WebhookStoreError>;
+  ) => Effect.Effect<LeaseResponse, ApiError | NetworkError | ParseError>;
 
-  readonly report: (request: ReportRequest) => Effect.Effect<ReportResponse, WebhookStoreError>;
+  readonly report: (
+    request: ReportRequest,
+  ) => Effect.Effect<ReportResponse, ApiError | NetworkError | ParseError>;
 }
 
 export class WebhookStore extends Context.Tag("WebhookStore")<
@@ -50,12 +51,24 @@ export const WebhookStoreLive = Layer.effect(
       baseHeaders["Authorization"] = `Bearer ${config.internalApiToken}`;
     }
 
+    const withTransientRetry = <A, E, R>(
+      effect: Effect.Effect<A, E, R>,
+    ): Effect.Effect<A, E, R> =>
+      pipe(
+        effect,
+        Effect.retry({
+          while: (err): err is E =>
+            err instanceof ApiError && isTransientApiError(err),
+          schedule: transientApiRetrySchedule,
+        }),
+      );
+
     const lease: WebhookStoreService["lease"] = (limit, leaseMs) => {
       const request = HttpClientRequest.post(
         `${config.internalApiBaseUrl}/internal/dispatcher/lease`,
       ).pipe(HttpClientRequest.setHeaders(baseHeaders));
 
-      return HttpClientRequest.bodyJson(request, {
+      const httpCall = HttpClientRequest.bodyJson(request, {
         limit,
         lease_ms: leaseMs,
         worker_id: config.workerId,
@@ -65,27 +78,31 @@ export const WebhookStoreLive = Layer.effect(
           client.execute(req).pipe(
             Effect.mapError(
               (e: HttpClientError.HttpClientError) =>
-                new WebhookStoreError({
-                  reason: "NetworkError",
+                new NetworkError({
                   message: "Failed to reach Rust API for lease",
                   cause: e,
                 }),
             ),
             Effect.flatMap((response) => {
               if (response.status >= 400) {
-                return Effect.fail(
-                  new WebhookStoreError({
-                    reason: "ApiError",
-                    message: `Lease request failed with status ${response.status}`,
-                  }),
+                return HttpClientResponse.schemaBodyJson(ApiErrorResponseSchema)(response).pipe(
+                  Effect.mapError(
+                    (e) =>
+                      new ParseError({
+                        message: "Invalid lease error response",
+                        cause: e,
+                      }),
+                  ),
+                  Effect.flatMap((apiError) =>
+                    Effect.fail(new ApiError({ apiError })),
+                  ),
                 );
               }
               return HttpClientResponse.schemaBodyJson(LeaseResponseSchema)(response).pipe(
                 Effect.map((body) => body as LeaseResponse),
                 Effect.mapError(
                   (e) =>
-                    new WebhookStoreError({
-                      reason: "ParseError",
+                    new ParseError({
                       message: "Invalid lease response",
                       cause: e,
                     }),
@@ -95,7 +112,9 @@ export const WebhookStoreLive = Layer.effect(
             Effect.scoped,
           ),
         ),
-      ) as Effect.Effect<LeaseResponse, WebhookStoreError>;
+      );
+
+      return withTransientRetry(httpCall);
     };
 
     const report: WebhookStoreService["report"] = (reportRequest) => {
@@ -103,33 +122,37 @@ export const WebhookStoreLive = Layer.effect(
         `${config.internalApiBaseUrl}/internal/dispatcher/report`,
       ).pipe(HttpClientRequest.setHeaders(baseHeaders));
 
-      return HttpClientRequest.bodyJson(request, reportRequest).pipe(
+      const httpCall = HttpClientRequest.bodyJson(request, reportRequest).pipe(
         Effect.mapError(mapBodyError),
         Effect.flatMap((req) =>
           client.execute(req).pipe(
             Effect.mapError(
               (e: HttpClientError.HttpClientError) =>
-                new WebhookStoreError({
-                  reason: "NetworkError",
+                new NetworkError({
                   message: "Failed to reach Rust API for report",
                   cause: e,
                 }),
             ),
             Effect.flatMap((response) => {
               if (response.status >= 400) {
-                return Effect.fail(
-                  new WebhookStoreError({
-                    reason: "ApiError",
-                    message: `Report request failed with status ${response.status}`,
-                  }),
+                return HttpClientResponse.schemaBodyJson(ApiErrorResponseSchema)(response).pipe(
+                  Effect.mapError(
+                    (e) =>
+                      new ParseError({
+                        message: "Invalid report error response",
+                        cause: e,
+                      }),
+                  ),
+                  Effect.flatMap((apiError) =>
+                    Effect.fail(new ApiError({ apiError })),
+                  ),
                 );
               }
               return HttpClientResponse.schemaBodyJson(ReportResponseSchema)(response).pipe(
                 Effect.map((body) => body as ReportResponse),
                 Effect.mapError(
                   (e) =>
-                    new WebhookStoreError({
-                      reason: "ParseError",
+                    new ParseError({
                       message: "Invalid report response",
                       cause: e,
                     }),
@@ -139,7 +162,9 @@ export const WebhookStoreLive = Layer.effect(
             Effect.scoped,
           ),
         ),
-      ) as Effect.Effect<ReportResponse, WebhookStoreError>;
+      );
+
+      return withTransientRetry(httpCall);
     };
 
     return { lease, report };

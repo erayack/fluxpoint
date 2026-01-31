@@ -12,7 +12,8 @@ import type { ReportRequest } from "@repo/api";
 
 import type { DispatcherConfigService } from "./dispatcherConfig.js";
 import { DispatcherConfig } from "./dispatcherConfig.js";
-import { WebhookStore, WebhookStoreError, WebhookStoreLive } from "./webhookStore.js";
+import { WebhookStore, WebhookStoreLive } from "./webhookStore.js";
+import { ApiError, NetworkError, ParseError, type CoreError } from "../errors/apiError.js";
 
 const baseConfig: DispatcherConfigService = {
   workerId: "worker-1",
@@ -54,7 +55,7 @@ const getHeader = (headers: Headers.Headers, key: string): string | undefined =>
 const runWithStore = <A>(
   config: DispatcherConfigService,
   client: HttpClient.HttpClient,
-  effect: Effect.Effect<A, WebhookStoreError, WebhookStore>,
+  effect: Effect.Effect<A, CoreError, WebhookStore>,
 ) => {
   const deps = Layer.mergeAll(
     Layer.succeed(DispatcherConfig, config),
@@ -67,7 +68,7 @@ const runWithStore = <A>(
 const runWithStoreExit = <A>(
   config: DispatcherConfigService,
   client: HttpClient.HttpClient,
-  effect: Effect.Effect<A, WebhookStoreError, WebhookStore>,
+  effect: Effect.Effect<A, CoreError, WebhookStore>,
 ) => {
   const deps = Layer.mergeAll(
     Layer.succeed(DispatcherConfig, config),
@@ -108,7 +109,7 @@ const makeCapturingClient = (
   };
 };
 
-const getFailure = async (exit: Exit.Exit<unknown, WebhookStoreError>) => {
+const getFailure = async (exit: Exit.Exit<unknown, CoreError>) => {
   expect(Exit.isFailure(exit)).toBe(true);
   if (!Exit.isFailure(exit)) {
     return undefined;
@@ -186,7 +187,7 @@ describe("WebhookStoreLive", () => {
     expect(body).toEqual(reportRequest);
   });
 
-  it("maps lease network failures to WebhookStoreError", async () => {
+  it("maps lease network failures to NetworkError", async () => {
     const { client } = makeCapturingClient((req) =>
       Effect.fail(new HttpClientError.RequestError({ request: req, reason: "Transport" })),
     );
@@ -194,23 +195,25 @@ describe("WebhookStoreLive", () => {
     const exit = await runWithStoreExit(baseConfig, client, leaseEffect(2, 5000));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("NetworkError");
+    expect(failure).toBeInstanceOf(NetworkError);
+    expect(failure?.message).toBe("Failed to reach Rust API for lease");
   });
 
-  it("maps lease HTTP errors to WebhookStoreError", async () => {
+  it("maps lease HTTP errors to ApiError", async () => {
     const { client } = makeCapturingClient((req) =>
-      Effect.succeed(jsonResponse(req, { error: "nope" }, 500)),
+      Effect.succeed(jsonResponse(req, { code: "internal", message: "nope" }, 500)),
     );
 
     const exit = await runWithStoreExit(baseConfig, client, leaseEffect(2, 5000));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("ApiError");
+    expect(failure).toBeInstanceOf(ApiError);
+    if (failure instanceof ApiError) {
+      expect(failure.apiError.code).toBe("internal");
+    }
   });
 
-  it("maps lease schema failures to WebhookStoreError", async () => {
+  it("maps lease schema failures to ParseError", async () => {
     const { client } = makeCapturingClient((req) =>
       Effect.succeed(jsonResponse(req, { nope: true })),
     );
@@ -218,11 +221,11 @@ describe("WebhookStoreLive", () => {
     const exit = await runWithStoreExit(baseConfig, client, leaseEffect(2, 5000));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("ParseError");
+    expect(failure).toBeInstanceOf(ParseError);
+    expect(failure?.message).toBe("Invalid lease response");
   });
 
-  it("maps report network failures to WebhookStoreError", async () => {
+  it("maps report network failures to NetworkError", async () => {
     const { client } = makeCapturingClient((req) =>
       Effect.fail(new HttpClientError.RequestError({ request: req, reason: "Transport" })),
     );
@@ -249,13 +252,13 @@ describe("WebhookStoreLive", () => {
     const exit = await runWithStoreExit(baseConfig, client, reportEffect(reportRequest));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("NetworkError");
+    expect(failure).toBeInstanceOf(NetworkError);
+    expect(failure?.message).toBe("Failed to reach Rust API for report");
   });
 
-  it("maps report HTTP errors to WebhookStoreError", async () => {
+  it("maps report HTTP errors to ApiError", async () => {
     const { client } = makeCapturingClient((req) =>
-      Effect.succeed(jsonResponse(req, { error: "nope" }, 400)),
+      Effect.succeed(jsonResponse(req, { code: "validation", message: "nope" }, 400)),
     );
 
     const reportRequest: ReportRequest = {
@@ -280,11 +283,13 @@ describe("WebhookStoreLive", () => {
     const exit = await runWithStoreExit(baseConfig, client, reportEffect(reportRequest));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("ApiError");
+    expect(failure).toBeInstanceOf(ApiError);
+    if (failure instanceof ApiError) {
+      expect(failure.apiError.code).toBe("validation");
+    }
   });
 
-  it("maps report schema failures to WebhookStoreError", async () => {
+  it("maps report schema failures to ParseError", async () => {
     const { client } = makeCapturingClient((req) =>
       Effect.succeed(jsonResponse(req, { nope: true })),
     );
@@ -311,11 +316,11 @@ describe("WebhookStoreLive", () => {
     const exit = await runWithStoreExit(baseConfig, client, reportEffect(reportRequest));
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("ParseError");
+    expect(failure).toBeInstanceOf(ParseError);
+    expect(failure?.message).toBe("Invalid report response");
   });
 
-  it("maps report serialization failures to WebhookStoreError", async () => {
+  it("maps report serialization failures to ParseError", async () => {
     const { client } = makeCapturingClient((req) =>
       Effect.succeed(jsonResponse(req, { circuit: null })),
     );
@@ -330,8 +335,7 @@ describe("WebhookStoreLive", () => {
     );
     const failure = await getFailure(exit);
 
-    expect(failure).toBeInstanceOf(WebhookStoreError);
-    expect(failure?.reason).toBe("ParseError");
+    expect(failure).toBeInstanceOf(ParseError);
     expect(failure?.message).toBe("Failed to serialize request body");
   });
 });
