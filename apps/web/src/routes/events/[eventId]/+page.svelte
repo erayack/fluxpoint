@@ -27,7 +27,7 @@
     mutationFn: () => replayEvent(eventId, { reset_circuit: resetCircuit }),
     onSuccess: (response) => {
       queryClient.invalidateQueries({ queryKey: ["inspector"] });
-      goto(resolve(`/events/${response.event.id}`));
+      goto(resolve("/events/[eventId]", { eventId: response.event.id }));
     },
   }));
 
@@ -98,7 +98,7 @@
 </script>
 
 <main>
-  <a href={resolve("/")} class="back-link">← Back to events</a>
+  <a href={resolve("/", {})} class="back-link">← Back to events</a>
 
   {#if eventQuery.isPending}
     <p class="loading">Loading event...</p>
@@ -119,6 +119,15 @@
       <dl>
         <dt>ID</dt>
         <dd>{event.id}</dd>
+
+        {#if event.replayed_from_event_id}
+          <dt>Replayed From</dt>
+          <dd>
+            <a href={resolve("/events/[eventId]", { eventId: event.replayed_from_event_id })}>
+              {event.replayed_from_event_id}
+            </a>
+          </dd>
+        {/if}
 
         <dt>Endpoint ID</dt>
         <dd>{event.endpoint_id}</dd>

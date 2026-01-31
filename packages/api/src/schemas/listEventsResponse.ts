@@ -4,6 +4,7 @@ import { TargetCircuitStateSchema, WebhookEventStatusSchema } from "./leaseRespo
 export const WebhookEventSummarySchema = Schema.Struct({
   id: Schema.String,
   endpoint_id: Schema.String,
+  replayed_from_event_id: Schema.NullOr(Schema.String),
   provider: Schema.String,
   status: WebhookEventStatusSchema,
   attempts: Schema.Number,

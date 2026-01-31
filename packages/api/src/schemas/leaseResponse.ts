@@ -22,6 +22,7 @@ export const TargetCircuitStateSchema = Schema.Struct({
 export const WebhookEventSchema = Schema.Struct({
   id: Schema.String,
   endpoint_id: Schema.String,
+  replayed_from_event_id: Schema.NullOr(Schema.String),
   provider: Schema.String,
   headers: Schema.Record({ key: Schema.String, value: Schema.String }),
   payload: Schema.String,

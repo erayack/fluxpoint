@@ -23,6 +23,7 @@ import {
 const validWebhookEvent = {
   id: "evt_123",
   endpoint_id: "ep_456",
+  replayed_from_event_id: null,
   provider: "stripe",
   headers: { "content-type": "application/json" },
   payload: '{"type":"payment.created"}',
@@ -68,6 +69,7 @@ const validAttemptLog = {
 const validEventSummary = {
   id: "evt_123",
   endpoint_id: "ep_456",
+  replayed_from_event_id: null,
   provider: "stripe",
   status: "pending" as const,
   attempts: 0,
@@ -144,6 +146,7 @@ describe("WebhookEventSchema", () => {
   it("accepts event with all nullable fields populated", () => {
     const fullEvent = {
       ...validWebhookEvent,
+      replayed_from_event_id: "evt_999",
       next_attempt_at: "2024-01-01T00:01:00Z",
       lease_expires_at: "2024-01-01T00:02:00Z",
       leased_by: "worker-1",
@@ -395,6 +398,7 @@ describe("WebhookEventSummarySchema", () => {
   it("accepts event summary with nullable fields populated", () => {
     const fullSummary = {
       ...validEventSummary,
+      replayed_from_event_id: "evt_999",
       next_attempt_at: "2024-01-01T00:01:00Z",
       last_error: "Connection timeout",
     };

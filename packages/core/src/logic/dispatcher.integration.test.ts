@@ -46,6 +46,7 @@ const makeLeasedEvent = (options?: {
     lease_expires_at: null,
     leased_by: null,
     last_error: null,
+    replayed_from_event_id: null,
   },
   target_url: options?.targetUrl ?? TARGET_URL,
   lease_expires_at: "2024-01-01T00:00:30Z",
