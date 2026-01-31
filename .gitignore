@@ -15,3 +15,6 @@ pnpm-debug.log*
 
 .DS_Store
 docs/
+
+# Override global gitignore for src/lib directories
+!**/src/lib/

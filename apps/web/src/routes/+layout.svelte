@@ -1,17 +1,11 @@
 <script lang="ts">
   import "../app.css";
-  import { QueryClient, QueryClientProvider } from "@tanstack/svelte-query";
+  import { QueryClientProvider } from "@tanstack/svelte-query";
+  import { createQueryClient } from "$lib/queries/queryClient.js";
 
   let { children } = $props();
 
-  const queryClient = new QueryClient({
-    defaultOptions: {
-      queries: {
-        staleTime: 1000,
-        refetchOnWindowFocus: true,
-      },
-    },
-  });
+  const queryClient = createQueryClient();
 </script>
 
 <QueryClientProvider client={queryClient}>

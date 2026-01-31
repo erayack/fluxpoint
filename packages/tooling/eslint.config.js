@@ -5,7 +5,13 @@ import svelteParser from "svelte-eslint-parser";
 
 export default [
   {
-    ignores: ["**/node_modules/**", "**/.svelte-kit/**", "**/dist/**", "**/build/**"],
+    ignores: [
+      "**/node_modules/**",
+      "**/.svelte-kit/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/coverage/**",
+    ],
   },
   ...ts.configs.recommended,
   ...svelte.configs["flat/recommended"],
