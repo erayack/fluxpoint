@@ -8,20 +8,26 @@ import {
   ProxyError,
 } from "$lib/server/proxyHelper.js";
 
-export const POST: RequestHandler = async ({ params, request }) => {
+export const POST: RequestHandler = async ({ params, request, locals }) => {
   return runProxy(
     Effect.gen(function* () {
       yield* requireDashboardKey(request);
 
       const body = yield* Effect.tryPromise({
         try: () => request.json() as Promise<{ reset_circuit?: boolean }>,
-        catch: () => new ProxyError(400, "Invalid request body"),
+        catch: () =>
+          new ProxyError(400, "Invalid request body", {
+            code: "validation",
+            message: "Invalid request body",
+          }),
       });
 
       return yield* createProxyFetch(ReplayEventResponseSchema, {
         path: `/api/inspector/events/${params.eventId}/replay`,
         method: "POST",
         body,
+        signal: request.signal,
+        requestId: locals.requestId,
       });
     }),
   );

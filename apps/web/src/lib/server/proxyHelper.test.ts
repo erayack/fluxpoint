@@ -77,7 +77,7 @@ describe("requireDashboardKey", () => {
       if (response instanceof Response) {
         expect(response.status).toBe(401);
         const body = await response.json();
-        expect(body).toEqual({ error: "Unauthorized" });
+        expect(body).toEqual({ code: "unauthorized", message: "Unauthorized" });
       }
     }
   });
@@ -113,8 +113,12 @@ describe("createProxyFetch", () => {
     if (exit._tag === "Failure" && exit.cause._tag === "Fail") {
       const error = exit.cause.error;
       expect(error).toBeInstanceOf(ProxyError);
-      expect(error.status).toBe(502);
+      expect(error.status).toBe(503);
       expect(error.message).toBe("Upstream not configured");
+      expect(error.apiError).toEqual({
+        code: "internal",
+        message: "Upstream not configured",
+      });
     }
   });
 
@@ -136,7 +140,7 @@ describe("createProxyFetch", () => {
     expect(result.status).toBe(200);
   });
 
-  it("fails with ProxyError(502) and generic message on upstream error response", async () => {
+  it("fails with ProxyError(404) and passes through ApiErrorResponse on upstream error response", async () => {
     const env = await getEnv();
     env.FLUXPOINT_RUST_PUBLIC_API_BASE_URL = "https://api.example.com";
 
@@ -154,8 +158,8 @@ describe("createProxyFetch", () => {
     if (exit._tag === "Failure" && exit.cause._tag === "Fail") {
       const error = exit.cause.error;
       expect(error).toBeInstanceOf(ProxyError);
-      expect(error.status).toBe(502);
-      expect(error.message).toBe("Upstream request failed");
+      expect(error.status).toBe(404);
+      expect(error.message).toBe("Not found");
       expect(error.apiError).toEqual({ code: "not_found", message: "Not found" });
     }
   });
@@ -179,6 +183,7 @@ describe("createProxyFetch", () => {
       const error = exit.cause.error;
       expect(error).toBeInstanceOf(ProxyError);
       expect(error.status).toBe(502);
+      expect(error.message).toBe("Invalid upstream response");
     }
   });
 
@@ -201,7 +206,7 @@ describe("createProxyFetch", () => {
       const error = exit.cause.error;
       expect(error).toBeInstanceOf(ProxyError);
       expect(error.status).toBe(502);
-      expect(error.message).toBe("Upstream request failed");
+      expect(error.message).toBe("Invalid upstream response");
     }
   });
 
@@ -254,6 +259,46 @@ describe("createProxyFetch", () => {
       }),
     );
   });
+
+  it("aborts upstream fetch when the request signal is canceled", async () => {
+    const env = await getEnv();
+    env.FLUXPOINT_RUST_PUBLIC_API_BASE_URL = "https://api.example.com";
+
+    mockFetch.mockImplementationOnce((_url, options) => {
+      return new Promise((_resolve, reject) => {
+        const signal = options?.signal;
+        if (signal?.aborted) {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+          return;
+        }
+        signal?.addEventListener("abort", () => {
+          const error = new Error("aborted");
+          error.name = "AbortError";
+          reject(error);
+        });
+      });
+    });
+
+    const controller = new AbortController();
+    const effect = createProxyFetch(TestSchema, {
+      path: "/test",
+      signal: controller.signal,
+    });
+
+    const exitPromise = Effect.runPromiseExit(effect);
+    controller.abort();
+    const exit = await exitPromise;
+
+    expect(exit._tag).toBe("Failure");
+    if (exit._tag === "Failure" && exit.cause._tag === "Fail") {
+      const error = exit.cause.error;
+      expect(error).toBeInstanceOf(ProxyError);
+      expect(error.status).toBe(499);
+      expect(error.isAbort).toBe(true);
+    }
+  });
 });
 
 describe("runProxy", () => {
@@ -268,13 +313,21 @@ describe("runProxy", () => {
   });
 
   it("returns json response with generic error message on ProxyError", async () => {
-    const effect = Effect.fail(new ProxyError(502, "Upstream request failed"));
+    const effect = Effect.fail(
+      new ProxyError(502, "Upstream request failed", {
+        code: "internal",
+        message: "Upstream request failed",
+      }),
+    );
     const response = await runProxy(effect);
 
     expect(response).toBeInstanceOf(Response);
     expect(response.status).toBe(502);
     const body = await response.json();
-    expect(body).toEqual({ error: "Upstream request failed" });
+    expect(body).toEqual({
+      code: "internal",
+      message: "Upstream request failed",
+    });
   });
 
   it("returns the Response as-is when error is a Response", async () => {

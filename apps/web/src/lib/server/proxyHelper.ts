@@ -9,6 +9,8 @@ export interface ProxyConfig {
   method?: "GET" | "POST";
   query?: URLSearchParams;
   body?: unknown;
+  signal?: AbortSignal;
+  requestId?: string;
 }
 
 export interface ProxyResult<T> {
@@ -22,6 +24,7 @@ export class ProxyError {
     readonly status: number,
     readonly message: string,
     readonly apiError?: ApiErrorResponse,
+    readonly isAbort = false,
   ) {}
 }
 
@@ -31,6 +34,7 @@ interface UpstreamFailureMeta {
   apiError?: ApiErrorResponse;
   rawBody?: string;
   reason: string;
+  requestId?: string;
 }
 
 const logUpstreamFailure = (meta: UpstreamFailureMeta) =>
@@ -38,14 +42,28 @@ const logUpstreamFailure = (meta: UpstreamFailureMeta) =>
     Effect.annotateLogs({
       path: meta.path,
       reason: meta.reason,
+      ...(meta.requestId && { requestId: meta.requestId }),
       ...(meta.status !== undefined && { status: meta.status }),
       ...(meta.apiError && { code: meta.apiError.code, message: meta.apiError.message }),
       ...(dev && meta.rawBody && { rawBody: meta.rawBody }),
     }),
   );
 
-const toProxyError = (apiError?: ApiErrorResponse) =>
-  new ProxyError(502, "Upstream request failed", apiError);
+const logUpstreamCancellation = (meta: UpstreamFailureMeta) =>
+  Effect.logInfo("Upstream request canceled").pipe(
+    Effect.annotateLogs({
+      path: meta.path,
+      reason: meta.reason,
+      ...(meta.requestId && { requestId: meta.requestId }),
+    }),
+  );
+
+const buildInternalError = (message: string): ApiErrorResponse => ({
+  code: "internal",
+  message,
+});
+
+const isAbortError = (error: unknown) => error instanceof Error && error.name === "AbortError";
 
 export function requireDashboardKey(request: Request): Effect.Effect<void, Response> {
   return Effect.gen(function* () {
@@ -55,7 +73,7 @@ export function requireDashboardKey(request: Request): Effect.Effect<void, Respo
     }
     const provided = request.headers.get("x-fluxpoint-dashboard-key");
     if (provided !== dashboardKey) {
-      yield* Effect.fail(json({ error: "Unauthorized" }, { status: 401 }));
+      yield* Effect.fail(json({ code: "unauthorized", message: "Unauthorized" }, { status: 401 }));
     }
   });
 }
@@ -66,14 +84,39 @@ export function createProxyFetch<A, I, R>(
 ): Effect.Effect<ProxyResult<A>, ProxyError, R> {
   return pipe(
     Effect.acquireRelease(
-      Effect.sync(() => new AbortController()),
-      (ctrl) => Effect.sync(() => ctrl.abort()),
+      Effect.sync(() => {
+        const controller = new AbortController();
+        if (!config.signal) {
+          return { controller, cleanup: undefined };
+        }
+        const handleAbort = () => controller.abort();
+        if (config.signal.aborted) {
+          controller.abort();
+        } else {
+          config.signal.addEventListener("abort", handleAbort, { once: true });
+        }
+        return {
+          controller,
+          cleanup: () => config.signal?.removeEventListener("abort", handleAbort),
+        };
+      }),
+      ({ controller, cleanup }) =>
+        Effect.sync(() => {
+          cleanup?.();
+          controller.abort();
+        }),
     ),
-    Effect.flatMap((abortController) =>
+    Effect.flatMap(({ controller }) =>
       Effect.gen(function* () {
         const baseUrl = env.FLUXPOINT_RUST_PUBLIC_API_BASE_URL;
         if (!baseUrl) {
-          return yield* Effect.fail(new ProxyError(502, "Upstream not configured"));
+          return yield* Effect.fail(
+            new ProxyError(
+              503,
+              "Upstream not configured",
+              buildInternalError("Upstream not configured"),
+            ),
+          );
         }
 
         let url = `${baseUrl}${config.path}`;
@@ -89,11 +132,14 @@ export function createProxyFetch<A, I, R>(
         if (token) {
           headers["Authorization"] = `Bearer ${token}`;
         }
+        if (config.requestId) {
+          headers["x-request-id"] = config.requestId;
+        }
 
         const fetchOptions: RequestInit = {
           method: config.method ?? "GET",
           headers,
-          signal: abortController.signal,
+          signal: controller.signal,
         };
 
         if (config.body !== undefined) {
@@ -103,20 +149,51 @@ export function createProxyFetch<A, I, R>(
 
         const response = yield* Effect.tryPromise({
           try: () => fetch(url, fetchOptions),
-          catch: () => toProxyError(),
+          catch: (error) =>
+            isAbortError(error)
+              ? new ProxyError(
+                  499,
+                  "Request canceled",
+                  buildInternalError("Request canceled"),
+                  true,
+                )
+              : new ProxyError(
+                  503,
+                  "Upstream unreachable",
+                  buildInternalError("Upstream unreachable"),
+                ),
         }).pipe(
-          Effect.tapError(() => logUpstreamFailure({ path: config.path, reason: "network_error" })),
+          Effect.tapError((error) => {
+            if (error instanceof ProxyError && error.isAbort) {
+              return logUpstreamCancellation({
+                path: config.path,
+                reason: "request_canceled",
+                requestId: config.requestId,
+              });
+            }
+            return logUpstreamFailure({
+              path: config.path,
+              reason: "network_error",
+              requestId: config.requestId,
+            });
+          }),
         );
 
         const rawText = yield* Effect.tryPromise({
           try: () => response.text(),
-          catch: () => toProxyError(),
+          catch: () =>
+            new ProxyError(
+              502,
+              "Invalid upstream response",
+              buildInternalError("Invalid upstream response"),
+            ),
         }).pipe(
           Effect.tapError(() =>
             logUpstreamFailure({
               path: config.path,
               status: response.status,
               reason: "body_read_error",
+              requestId: config.requestId,
             }),
           ),
         );
@@ -134,8 +211,16 @@ export function createProxyFetch<A, I, R>(
                 status: response.status,
                 reason: "json_parse_error",
                 rawBody: rawText,
+                requestId: config.requestId,
               }),
-              () => Effect.fail(toProxyError()),
+              () =>
+                Effect.fail(
+                  new ProxyError(
+                    502,
+                    "Invalid upstream response",
+                    buildInternalError("Invalid upstream response"),
+                  ),
+                ),
             ),
           ),
         );
@@ -149,16 +234,24 @@ export function createProxyFetch<A, I, R>(
               status: response.status,
               apiError,
               reason: "upstream_error",
+              requestId: config.requestId,
             });
-            yield* Effect.fail(toProxyError(apiError));
+            yield* Effect.fail(new ProxyError(response.status, apiError.message, apiError));
           } else {
             yield* logUpstreamFailure({
               path: config.path,
               status: response.status,
               reason: "invalid_upstream_error_format",
               rawBody: rawText,
+              requestId: config.requestId,
             });
-            yield* Effect.fail(toProxyError());
+            yield* Effect.fail(
+              new ProxyError(
+                502,
+                "Invalid upstream response",
+                buildInternalError("Invalid upstream response"),
+              ),
+            );
           }
         }
 
@@ -169,9 +262,17 @@ export function createProxyFetch<A, I, R>(
               status: response.status,
               reason: "schema_validation_error",
               rawBody: rawText,
+              requestId: config.requestId,
             }),
           ),
-          Effect.mapError(() => toProxyError()),
+          Effect.mapError(
+            () =>
+              new ProxyError(
+                502,
+                "Invalid upstream response",
+                buildInternalError("Invalid upstream response"),
+              ),
+          ),
         );
 
         return { data: decoded, status: response.status };
@@ -192,9 +293,10 @@ export function runProxy<A>(
           return Effect.succeed(error);
         }
         if (error instanceof ProxyError) {
-          return Effect.succeed(json({ error: error.message }, { status: error.status }));
+          const apiError = error.apiError ?? buildInternalError(error.message);
+          return Effect.succeed(json(apiError, { status: error.status }));
         }
-        return Effect.succeed(json({ error: "Internal error" }, { status: 500 }));
+        return Effect.succeed(json(buildInternalError("Internal error"), { status: 500 }));
       }),
     ),
   );

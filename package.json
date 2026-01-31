@@ -3,8 +3,8 @@
   "private": true,
   "scripts": {
     "dev": "pnpm --filter web dev",
-    "format": "oxfmt .",
-    "format:check": "oxfmt --check .",
+    "format": "oxfmt 'apps/**/src' 'packages/**/src' scripts",
+    "format:check": "oxfmt --check 'apps/**/src' 'packages/**/src' scripts",
     "lint": "pnpm lint:oxlint && pnpm lint:eslint",
     "lint:oxlint": "oxlint . --deny-warnings --config packages/tooling/oxlint.json",
     "lint:eslint": "eslint . --config packages/tooling/eslint.config.js",
