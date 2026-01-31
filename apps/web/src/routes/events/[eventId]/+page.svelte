@@ -4,6 +4,7 @@
   import { resolve } from "$app/paths";
   import { createQuery, createMutation, useQueryClient } from "@tanstack/svelte-query";
   import { fetchEvent, fetchAttempts, replayEvent } from "$lib/queries/index.js";
+  import { getErrorMessage } from "$lib/errors/index.js";
   import type { WebhookEventStatus, WebhookAttemptLog } from "@repo/api";
 
   const queryClient = useQueryClient();
@@ -103,7 +104,7 @@
   {#if eventQuery.isPending}
     <p class="loading">Loading event...</p>
   {:else if eventQuery.isError}
-    <p class="error">Error: {eventQuery.error.message}</p>
+    <p class="error">{getErrorMessage(eventQuery.error, "Failed to load event")}</p>
   {:else if eventQuery.data}
     {@const event = eventQuery.data.event}
     {@const targetUrl = eventQuery.data.target_url}
@@ -185,7 +186,7 @@
         {replayMutation.isPending ? "Replaying..." : "Replay Event"}
       </button>
       {#if replayMutation.isError}
-        <p class="error">Replay failed: {replayMutation.error.message}</p>
+        <p class="error">{getErrorMessage(replayMutation.error, "Replay failed")}</p>
       {/if}
     </section>
   {/if}
@@ -196,7 +197,7 @@
     {#if attemptsQuery.isPending}
       <p class="loading">Loading attempts...</p>
     {:else if attemptsQuery.isError}
-      <p class="error">Error: {attemptsQuery.error.message}</p>
+      <p class="error">{getErrorMessage(attemptsQuery.error, "Failed to load attempts")}</p>
     {:else if attemptsQuery.data}
       {#if attemptsQuery.data.attempts.length === 0}
         <p class="empty">No attempts recorded yet.</p>

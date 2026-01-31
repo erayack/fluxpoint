@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
+    "@repo/api": "workspace:*",
     "svelte": "^5.0.0"
   }
 }

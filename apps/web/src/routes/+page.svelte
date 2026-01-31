@@ -2,6 +2,7 @@
   import { createQuery } from "@tanstack/svelte-query";
   import { resolve } from "$app/paths";
   import { fetchEvents, type FetchEventsParams } from "$lib/queries/index.js";
+  import { getErrorMessage } from "$lib/errors/index.js";
   import type { WebhookEventStatus } from "@repo/api";
 
   const STATUS_OPTIONS: Array<WebhookEventStatus | ""> = [
@@ -111,7 +112,7 @@
   {#if eventsQuery.isPending}
     <p class="loading">Loading events...</p>
   {:else if eventsQuery.isError}
-    <p class="error">Error: {eventsQuery.error.message}</p>
+    <p class="error">{getErrorMessage(eventsQuery.error, "Failed to load events")}</p>
   {:else if eventsQuery.data}
     <table>
       <thead>

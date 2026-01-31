@@ -7,11 +7,7 @@ import {
   type HttpClientError,
 } from "@effect/platform";
 import type { LeaseResponse, ReportRequest, ReportResponse } from "@repo/api";
-import {
-  ApiErrorResponseSchema,
-  LeaseResponseSchema,
-  ReportResponseSchema,
-} from "@repo/api";
+import { ApiErrorResponseSchema, LeaseResponseSchema, ReportResponseSchema } from "@repo/api";
 import { DispatcherConfig } from "./dispatcherConfig.js";
 import { ApiError, NetworkError, ParseError, isTransientApiError } from "../errors/apiError.js";
 import { transientApiRetrySchedule } from "../utils/retryPolicy.js";
@@ -51,14 +47,11 @@ export const WebhookStoreLive = Layer.effect(
       baseHeaders["Authorization"] = `Bearer ${config.internalApiToken}`;
     }
 
-    const withTransientRetry = <A, E, R>(
-      effect: Effect.Effect<A, E, R>,
-    ): Effect.Effect<A, E, R> =>
+    const withTransientRetry = <A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, R> =>
       pipe(
         effect,
         Effect.retry({
-          while: (err): err is E =>
-            err instanceof ApiError && isTransientApiError(err),
+          while: (err): err is E => err instanceof ApiError && isTransientApiError(err),
           schedule: transientApiRetrySchedule,
         }),
       );
@@ -93,9 +86,7 @@ export const WebhookStoreLive = Layer.effect(
                         cause: e,
                       }),
                   ),
-                  Effect.flatMap((apiError) =>
-                    Effect.fail(new ApiError({ apiError })),
-                  ),
+                  Effect.flatMap((apiError) => Effect.fail(new ApiError({ apiError }))),
                 );
               }
               return HttpClientResponse.schemaBodyJson(LeaseResponseSchema)(response).pipe(
@@ -143,9 +134,7 @@ export const WebhookStoreLive = Layer.effect(
                         cause: e,
                       }),
                   ),
-                  Effect.flatMap((apiError) =>
-                    Effect.fail(new ApiError({ apiError })),
-                  ),
+                  Effect.flatMap((apiError) => Effect.fail(new ApiError({ apiError }))),
                 );
               }
               return HttpClientResponse.schemaBodyJson(ReportResponseSchema)(response).pipe(
